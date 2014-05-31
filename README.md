@@ -1,6 +1,6 @@
 # grunt-timestamp-file
 
-> grunt create timestamp file in project
+> 创建带时间戳的页面片
 
 ## Getting Started
 This plugin requires Grunt `~0.4.5`
@@ -20,65 +20,69 @@ grunt.loadNpmTasks('grunt-timestamp-file');
 ## The "timestamp_file" task
 
 ### Overview
-In your project's Gruntfile, add a section named `timestamp_file` to the data object passed into `grunt.initConfig()`.
 
-```js
-grunt.initConfig({
-  timestamp_file: {
-    options: {
-      // Task-specific options go here.
-    },
-    your_target: {
-      // Target-specific file lists and/or options go here.
-    },
-  },
-});
-```
+该plugin主要用来创建页面片文件，拍拍的同学应该很熟悉。通过页面片来管理css和js的引用，可以非常方便的避免浏览器缓存。
+
 
 ### Options
 
-#### options.separator
+#### options.urlRoot
 Type: `String`
-Default value: `',  '`
+Default value: `''`
 
-A string value that is used to do something with whatever.
+生成script标签或link标签所需要的根目录地址。
 
-#### options.punctuation
+其最后生成的页面片url地址为：`urlRoot` + `src` .
+
+即如上面那个例子，生成的最终url地址为：`https://www.paipai.com/test/t2/mod_hdft.css`
+
+
+#### options.timestampType
 Type: `String`
-Default value: `'.'`
+Default value: `'md5'`
 
-A string value that is used to do something else with whatever else.
+可选的值有 `md5` || `time`
+
+这里是创建时间戳的类型，提供md5 和 time 2种方式进行创建。
+
+这里推荐用`md5`主要是因为，创建的页面片里可能会包含多个script，但是有些script可能并没有修改内容。
+如果是用`time`方式，则全部script标签都使用新的时间戳，这样的话，并没有很好的利用浏览器的缓存。
+
+
+#### options.timestampFormat
+Type: `String`
+Default value: `'yymmddhMMss'`
+
+如果`timestampType`使用`time`的方式创建时间戳。那可以设置`time`时间戳的日期格式
+
 
 ### Usage Examples
 
-#### Default Options
-In this example, the default options are used to do something with whatever. So if the `testing` file has the content `Testing` and the `123` file had the content `1 2 3`, the generated result would be `Testing, 1 2 3.`
-
 ```js
 grunt.initConfig({
-  timestamp_file: {
-    options: {},
-    files: {
-      'dest/default_options': ['src/testing', 'src/123'],
-    },
-  },
-});
-```
-
-#### Custom Options
-In this example, custom options are used to do something else with whatever else. So if the `testing` file has the content `Testing` and the `123` file had the content `1 2 3`, the generated result in this case would be `Testing: 1 2 3 !!!`
-
-```js
-grunt.initConfig({
-  timestamp_file: {
-    options: {
-      separator: ': ',
-      punctuation: ' !!!',
-    },
-    files: {
-      'dest/default_options': ['src/testing', 'src/123'],
-    },
-  },
+    timestamp_file: {
+        //这里是整个页面片的公共设置部分
+        options: {
+          urlRoot:'https://www.paipai.com/'
+        },
+        script:{
+            //如果有单任务特殊的设置可以在这里进行全局覆盖
+            options: {
+                //attr可以指定创建在script 或 link 标签上的属性
+                attr:{
+                    charset : "utf-8"
+                }
+            },
+            //源路径
+            src:'test/t2/*.js',
+            //将页面片生成到的目标文件路径
+            dest:'tmp/custom_options.html'
+        },
+        css:{
+          src:'test/t2/*.css',
+          dest:'tmp/custom_options2.html'
+        }
+    }
 });
 ```
 
@@ -86,4 +90,5 @@ grunt.initConfig({
 In lieu of a formal styleguide, take care to maintain the existing coding style. Add unit tests for any new or changed functionality. Lint and test your code using [Grunt](http://gruntjs.com/).
 
 ## Release History
-_(Nothing yet)_
+
+1. 页面片创建
