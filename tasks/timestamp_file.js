@@ -92,7 +92,6 @@ module.exports = function (grunt) {
             return tag;
         }
 
-        console.info('filepath:', this.files)
         //开始读取文件
         this.files.forEach(function (f) {
 

@@ -1,7 +1,7 @@
 {
   "name": "grunt-timestamp-file",
   "description": "页面片文件生成工具",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "homepage": "https://github.com/baofen14787/grunt-timestamp-file",
   "author": "hugo <baofen14787@gmail.com> (http://www.ghugo.com/)",
   "repository": {
