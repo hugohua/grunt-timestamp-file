@@ -19,7 +19,7 @@ module.exports = function (grunt) {
         // Merge task-specific and/or target-specific options with these defaults.
         //默认参数
         var options = this.options({
-            punctuation     :   '.',
+            punctuation     :   '',
             separator       :   '\n ',
             urlRoot         :   '',                          //生成的页面片地址URL根目录地址
             timestampType   :   'md5',  //md5 || time
