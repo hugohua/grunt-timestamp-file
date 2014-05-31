@@ -26,7 +26,7 @@ grunt.loadNpmTasks('grunt-timestamp-file');
 
 ### Options
 
-#### options.urlRoot
+#### urlRoot
 Type: `String`
 Default value: `''`
 
@@ -37,7 +37,7 @@ Default value: `''`
 即如上面那个例子，生成的最终url地址为：`https://www.paipai.com/test/t2/mod_hdft.css`
 
 
-#### options.timestampType
+#### timestampType
 Type: `String`
 Default value: `'md5'`
 
@@ -49,7 +49,7 @@ Default value: `'md5'`
 如果是用`time`方式，则全部script标签都使用新的时间戳，这样的话，并没有很好的利用浏览器的缓存。
 
 
-#### options.timestampFormat
+#### timestampFormat
 Type: `String`
 Default value: `'yymmddhMMss'`
 
@@ -85,6 +85,8 @@ grunt.initConfig({
     }
 });
 ```
+
+这里的`src`、`dest` 等设置方式可以参考: http://gruntjs.com/configuring-tasks
 
 ## Contributing
 In lieu of a formal styleguide, take care to maintain the existing coding style. Add unit tests for any new or changed functionality. Lint and test your code using [Grunt](http://gruntjs.com/).
