@@ -1,13 +1,9 @@
 {
   "name": "grunt-timestamp-file",
-  "description": "grunt create timestamp file in project",
-  "version": "0.1.0",
+  "description": "页面片文件生成工具",
+  "version": "0.1.1",
   "homepage": "https://github.com/baofen14787/grunt-timestamp-file",
-  "author": {
-    "name": "hugo",
-    "email": "baofen14787@gmail.com",
-    "url": "http://www.ghugo.com/"
-  },
+  "author": "hugo <baofen14787@gmail.com> (http://www.ghugo.com/)",
   "repository": {
     "type": "git",
     "url": "git://github.com/baofen14787/grunt-timestamp-file.git"
@@ -28,9 +24,6 @@
     "test": "grunt test"
   },
   "devDependencies": {
-    "grunt-contrib-jshint": "^0.9.2",
-    "grunt-contrib-clean": "^0.5.0",
-    "grunt-contrib-nodeunit": "^0.3.3",
     "grunt": "~0.4.5"
   },
   "peerDependencies": {
@@ -38,6 +31,14 @@
   },
   "keywords": [
     "timestamp",
-	"file"
-  ]
+    "file"
+  ],
+  "main": "Gruntfile.js",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {
+    "grunt": "^0.4.5"
+  },
+  "license": "ISC"
 }

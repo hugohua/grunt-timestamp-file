@@ -14,7 +14,7 @@ module.exports = function (grunt) {
     // Please see the Grunt documentation for more information regarding task
     // creation: http://gruntjs.com/creating-tasks
 
-    grunt.registerMultiTask('timestamp_file', 'grunt create timestamp file in project', function () {
+    grunt.registerMultiTask('timestamp_file', 'timestamp file will create', function () {
 
         // Merge task-specific and/or target-specific options with these defaults.
         //默认参数
