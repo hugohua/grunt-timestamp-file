@@ -1,103 +1,97 @@
 /*
- * grunt-timestamp-file
- * https://github.com/baofen14787/grunt-timestamp-file
+ * grunt-ftp-upload-log
+ * https://github.com/baofen14787/grunt-ftp-upload-log
  *
  * Copyright (c) 2014 hugo
  * Licensed under the MIT license.
  */
-var crypto = require('crypto');
-
-'use strict';
-
 module.exports = function (grunt) {
 
-    // Please see the Grunt documentation for more information regarding task
-    // creation: http://gruntjs.com/creating-tasks
+    'use strict';
 
-    grunt.registerMultiTask('timestamp_file', 'timestamp file will create', function () {
+    grunt.util = grunt.util || grunt.utils;
 
-        // Merge task-specific and/or target-specific options with these defaults.
-        //默认参数
-        var options = this.options({
-            punctuation     :   '',
-            separator       :   '\n ',
-            urlRoot         :   '',                          //生成的页面片地址URL根目录地址
-            timestampType   :   'md5',  //md5 || time
-            timestampFormat :   'yymmddhMMss'
-        });
+    var async = grunt.util.async;
+    var log = grunt.log;
+    var _ = grunt.util._;
+    var file = grunt.file;
+    var fs = require('fs');
+    var path = require('path');
+    var Ftp = require('jsftp');
+    var prompt = require('prompt');
 
-        function ttType(filepath){
-            var timeString,
-                sourcedata;
-            if(options.timestampType == 'md5'){
-                sourcedata = grunt.file.read(filepath);
-                timeString = md5(sourcedata, options.timestampType).substring(0,10);  //MD5太长 截短一点
-            }else{
-                timeString = grunt.template.today(options.timestampFormat)
-            }
-            return timeString;
+    var toTransfer;
+    var ftp;
+    var localRoot;
+    var remoteRoot;
+    var currPath;
+    var authVals;
+    var exclusions;
+    //hugo add
+    var options;
+    var logUrlRoot;     //生成的log提单地址
+    var logDest;    //生成的log文件路径
+    var logStr = '';    //生成的LOG内容
+
+    // A method for parsing the source location and storing the information into a suitably formated object
+
+    function dirParseSync(startDir, result) {
+        var files;
+        var i;
+        var tmpPath;
+        var currFile;
+
+        // initialize the `result` object if it is the first iteration
+        if (result === undefined) {
+            result = {};
+            result[path.sep] = [];
         }
 
-        function md5(content, encoding) {
-            return crypto.createHash('md5').update(content, encoding).digest('hex');
+        // check if `startDir` is a valid location
+        if (!fs.existsSync(startDir)) {
+            grunt.warn(startDir + ' is not an existing location');
         }
 
-        /**
-         * 创建script标签
-         * @param filepath
-         * @param attr
-         * @returns {string}
-         */
-        function createScript(filepath,attr){
-            var version = ttType(filepath),
-                url = options.urlRoot + filepath;
-
-            var str = '<script src="'+ url + '?v='+ version +'" ';
-            if(typeof attr === 'object'){
-                for(var i in attr){
-                    str += i + '="' + attr[i] + '" ';
+        // iterate throught the contents of the `startDir` location of the current iteration
+        files = fs.readdirSync(startDir);
+        for (i = 0; i < files.length; i++) {
+            currFile = startDir + path.sep + files[i];
+            if (!file.isMatch({
+                matchBase: true
+            }, exclusions, currFile)) {
+                if (file.isDir(currFile)) {
+                    tmpPath = path.relative(localRoot, startDir + path.sep + files[i]);
+                    if (!_.has(result, tmpPath)) {
+                        result[tmpPath] = [];
+                    }
+                    dirParseSync(startDir + path.sep + files[i], result);
+                } else {
+                    tmpPath = path.relative(localRoot, startDir);
+                    if (!tmpPath.length) {
+                        tmpPath = path.sep;
+                    }
+                    result[tmpPath].push(files[i]);
                 }
             }
-            str += '></script>';
-            return str;
         }
 
-        function createStyle(filepath,attr){
-            var version = ttType(filepath),
-                url = options.urlRoot + filepath;
-            var str = '<link rel="stylesheet" type="text/css" media="screen" href='+ url + '?v='+ version +'" ';
-            if(typeof attr === 'object'){
-                for(var i in attr){
-                    str += i + '="' + attr[i] + '" ';
+        return result;
+    }
+
+    // 解析上传文件数组
+
+    function fileParseSync(files) {
+        var result = {};
+        result[path.sep] = [];
+        files.forEach(function (f) {
+            var output = f.src.filter(function (filepath) {
+                // 过滤排除的文件
+                if (file.isMatch({
+                    matchBase: true
+                }, exclusions, filepath)) {
+                    return false;
                 }
-            }
-            str += '/>';
-            return str;
-        }
 
-        function createTimesTamp(filepath,attr){
-            //判定文件类型
-            var fileTyle = filepath.split('.'),
-                tag;
-            attr = attr || options.attr;
-            fileTyle = fileTyle[fileTyle.length -1];
-
-            switch (fileTyle){
-                case 'js':
-                    tag = createScript(filepath,attr);
-                    break
-                case 'css':
-                    tag = createStyle(filepath,attr);
-            }
-            return tag;
-        }
-
-        //开始读取文件
-        this.files.forEach(function (f) {
-
-            // Concat specified files.
-            var src = f.src.filter(function (filepath) {
-                //如果文件不存在 则 提示警告
                 if (!grunt.file.exists(filepath)) {
                     grunt.log.warn('Source file "' + filepath + '" not found.');
                     return false;
@@ -105,21 +99,178 @@ module.exports = function (grunt) {
                     return true;
                 }
             }).map(function (filepath) {
-                    // Read file source.
-                    return createTimesTamp(filepath);
-                }).join(grunt.util.normalizelf(options.separator));
+                result[path.sep].push(filepath);
+            });
+        });
 
-            // Handle options.
-            src += options.punctuation;
+        return result;
+    }
 
-            // Write the destination file.
-            grunt.file.write(f.dest, src);
+    // A method for changing the remote working directory and creating one if it doesn't already exist
 
-            // Print a success message.
-            grunt.log.writeln('File "' + f.dest + '" created.');
+    function ftpCwd(inPath, cb) {
+        ftp.raw.cwd(inPath, function (err) {
+            if (err) {
+                ftp.raw.mkd(inPath, function (err) {
+                    if (err) {
+                        log.error('Error creating new remote folder ' + inPath + ' --> ' + err);
+                        cb(err);
+                    } else {
+                        log.ok('New remote folder created ' + inPath.yellow);
+                        ftpCwd(inPath, cb);
+                    }
+                });
+            } else {
+                cb(null);
+            }
+        });
+    }
+
+    // A method for uploading a single file
+
+    function ftpPut(inFilename, cb) {
+        var fileUrl = '';
+        if (/\//.test(inFilename)) {
+            fileUrl = inFilename;
+            inFilename = inFilename.split('/').slice(-1)[0];
+        } else {
+            fileUrl = localRoot + path.sep + currPath + path.sep + inFilename;
+        }
+        var fileData = fs.readFileSync(fileUrl);
+        ftp.put(inFilename, fileData, function (err) {
+            if (err) {
+                log.error('Cannot upload file: ' + inFilename + ' --> ' + err);
+                cb(err);
+            } else {
+                log.ok('Uploaded file: ' + inFilename.green + ' to: ' + ('/' + remoteRoot + '/' + currPath).yellow);
+                var cPath;
+                if(currPath =="\\"){
+                    cPath = '';
+                }else{
+                    cPath = currPath + '/'
+                }
+                var logUrl = remoteRoot + '/' + cPath + inFilename +  '\n';
+                if(options.logFun){
+                    logUrl = options.logFun(logUrl);
+                }
+                logStr += logUrl;
+                cb(null);
+            }
+        });
+    }
+
+    // A method that processes a location - changes to a folder and uploads all respective files
+
+    function ftpProcessLocation(inPath, cb) {
+        if (!toTransfer[inPath]) {
+            cb(new Error('Data for ' + inPath + ' not found'));
+        }
+        ftpCwd('/' + remoteRoot + '/' + inPath.replace(/\\/gi, '/'), function (err) {
+            var files;
+
+            if (err) {
+                grunt.warn('Could not switch to remote folder!');
+            }
+
+            currPath = inPath;
+            files = toTransfer[inPath];
+            async.forEach(files, ftpPut, function (err) {
+                if (err) {
+                    grunt.warn('Failed uploading files!');
+                }
+                cb(null);
+            });
+        });
+    }
+
+    function getAuthByKey(inKey) {
+        var tmpStr;
+        var retVal = {};
+
+        if (fs.existsSync('config.json')) {
+            tmpStr = grunt.file.read('config.json');
+            if (inKey != null && tmpStr.length) retVal = JSON.parse(tmpStr)["ftp"][inKey];
+        }
+        return retVal;
+    }
+
+    // The main grunt task
+    grunt.registerMultiTask('ftp_upload_log', '一个grunt-ftp-upload的修改插件，支持按文件上传 及 log日志文件输出', function () {
+        var done = this.async();
+
+        //默认参数
+        options = this.options({
+            logUrlRoot      :   '',
+            logDest         :   '',
+            logFun          :   null        //log日志处理函数
+        });
+
+
+        // Init
+        ftp = new Ftp({
+            host: this.data.auth.host,
+            port: this.data.auth.port
+        });
+
+        localRoot = Array.isArray(this.data.src) ? this.data.src[0] : this.data.src;
+        remoteRoot = Array.isArray(this.data.dest) ? this.data.dest[0] : this.data.dest;
+        authVals = this.data.auth.authKey ? getAuthByKey(this.data.auth.authKey) : getAuthByKey(this.data.auth.host);
+        exclusions = this.data.exclusions || [];
+        ftp.useList = true;
+        logUrlRoot = options.logUrlRoot;
+        logDest = options.logDest;
+
+        // 如果localRoot是路径的话，按原来的逻辑执行，否则当作按文件上传
+        if (grunt.file.isDir(localRoot)) {
+            toTransfer = dirParseSync(localRoot);
+        } else {
+            localRoot = '';
+            toTransfer = fileParseSync(this.files);
+        }
+
+        // Getting all the necessary credentials before we proceed
+        var needed = {
+            properties: {}
+        };
+        if (!authVals.username) needed.properties.username = {};
+        if (!authVals.password) needed.properties.password = {
+            hidden: true
+        };
+        prompt.get(needed, function (err, result) {
+            if (err) {
+                grunt.warn('Authentication ' + err);
+            }
+            if (result.username) authVals.username = result.username;
+            if (result.password) authVals.password = result.password;
+
+            // Authentication and main processing of files
+            ftp.auth(authVals.username, authVals.password, function (err) {
+                var locations = _.keys(toTransfer);
+                if (err) {
+                    grunt.warn('Authentication ' + err);
+                }
+
+                // Iterating through all location from the `localRoot` in parallel
+                async.forEachSeries(locations, ftpProcessLocation, function () {
+                    ftp.raw.quit(function (err) {
+                        if (err) {
+                            log.error(err);
+                        } else {
+                            log.ok('FTP upload done!');
+                            if(logDest){
+                                grunt.file.write(logDest,logStr);
+                                log.ok('ftp log write done!');
+                            }
+
+                        }
+                        done();
+                    });
+                });
+            });
+
+            if (grunt.errors) {
+                return false;
+            }
         });
     });
-
-
-
 };
