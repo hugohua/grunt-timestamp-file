@@ -66,7 +66,7 @@ module.exports = function (grunt) {
         function createStyle(filepath,attr){
             var version = ttType(filepath),
                 url = options.urlRoot + filepath;
-            var str = '<link rel="stylesheet" type="text/css" media="screen" href='+ url + '?v='+ version +'" ';
+            var str = '<link rel="stylesheet" type="text/css" media="screen" href="'+ url + '?v='+ version +'" ';
             if(typeof attr === 'object'){
                 for(var i in attr){
                     str += i + '="' + attr[i] + '" ';
